@@ -1,0 +1,8 @@
+node_modules/
+.env
+deployments.json
+artifacts/
+web/config.js
+web/snapshot.json
+*.log
+.DS_Store

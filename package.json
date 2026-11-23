@@ -1,0 +1,26 @@
+{
+  "name": "reactive-omni-01",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "compile": "node scripts/compile.mjs",
+    "demo": "node scripts/demo-local.mjs",
+    "video": "node scripts/make-video.mjs",
+    "serve": "node scripts/serve.mjs 8080",
+    "fund-lasna": "node scripts/fund-lasna.mjs",
+    "deploy-all": "node scripts/deploy-all.mjs",
+    "demo-flow": "node scripts/demo-flow.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^18.0.10",
+    "ethers": "^6.17.0",
+    "solc": "^0.8.39"
+  },
+  "devDependencies": {
+    "hardhat": "^2.29.2"
+  }
+}
