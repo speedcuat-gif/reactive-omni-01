@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sentinel — stop-loss &amp; take-profit, executed by Reactive</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #0d1117; color: #e6edf3; }
+  header { padding: 28px 20px 8px; max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 30px; margin: 0 0 6px; }
+  h1 span { color: #58a6ff; }
+  .sub { color: #8b949e; font-size: 15px; line-height: 1.5; max-width: 720px; }
+  main { max-width: 960px; margin: 0 auto; padding: 16px 20px 40px; display: grid; gap: 16px; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 18px 20px; }
+  .card h2 { font-size: 15px; margin: 0 0 10px; text-transform: uppercase; letter-spacing: .08em; color: #8b949e; }
+  .price { font-size: 44px; font-weight: 700; }
+  .price small { font-size: 16px; color: #8b949e; font-weight: 400; }
+  .row { display: flex; gap: 16px; flex-wrap: wrap; }
+  .row .card { flex: 1; min-width: 260px; }
+  .kv { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #21262d; font-size: 14px; }
+  .kv:last-child { border-bottom: 0; }
+  .kv b { font-weight: 600; }
+  .kv code { color: #79c0ff; font-size: 12px; }
+  .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .pill.armed { background: #1f6feb33; color: #79c0ff; }
+  .pill.executed { background: #23863633; color: #3fb950; }
+  .pill.cancelled { background: #30363d; color: #8b949e; }
+  .steps { display: grid; grid-template-columns: 1fr 28px 1fr 28px 1fr; align-items: center; gap: 4px; }
+  .step { background: #0d1117; border: 1px solid #30363d; border-radius: 10px; padding: 12px; text-align: center; }
+  .step .n { font-size: 22px; }
+  .step .t { font-weight: 700; font-size: 13px; margin: 4px 0 2px; }
+  .step .d { font-size: 12px; color: #8b949e; line-height: 1.45; }
+  .arrow { text-align: center; color: #58a6ff; font-size: 20px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 7px 6px; border-bottom: 1px solid #21262d; }
+  th { color: #8b949e; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+  .muted { color: #8b949e; }
+  #status { font-size: 13px; color: #8b949e; }
+  #status.ok { color: #3fb950; }
+  footer { max-width: 960px; margin: 0 auto; padding: 0 20px 32px; color: #8b949e; font-size: 13px; line-height: 1.6; }
+  footer a { color: #79c0ff; }
+  @media (max-width: 640px) { .steps { grid-template-columns: 1fr; } .arrow { transform: rotate(90deg); } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Sentinel <span>// stop-loss &amp; take-profit, executed by Reactive</span></h1>
+  <p class="sub">Arm an order once and forget it. A reactive contract on Reactive Lasna watches the
+  price feed on Ethereum Sepolia; when your price is hit it fires a callback to the vault,
+  which releases your escrowed funds. No bot, no keeper, no off-chain watcher.</p>
+  <p id="status">connecting…</p>
+</header>
+<main>
+  <div class="card">
+    <h2>How it works</h2>
+    <div class="steps">
+      <div class="step"><div class="n">📉</div><div class="t">1 · Event</div><div class="d">Price feed publishes a new price on Sepolia</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">⚡</div><div class="t">2 · React</div><div class="d">Sentinel on Lasna sees the event and checks your orders</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">🔓</div><div class="t">3 · Callback</div><div class="d">Vault on Sepolia releases your escrowed funds</div></div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="card">
+      <h2>Price feed (Sepolia)</h2>
+      <div class="price"><span id="price">—</span> <small>USD · 8 decimals</small></div>
+      <div class="kv"><span>Feed contract</span><code id="feedAddr">—</code></div>
+      <div class="kv"><span>Last update</span><b id="priceTime">—</b></div>
+    </div>
+    <div class="card">
+      <h2>Vault escrow (Sepolia)</h2>
+      <div class="price"><span id="escrow">—</span> <small>sUSD held</small></div>
+      <div class="kv"><span>Vault contract</span><code id="vaultAddr">—</code></div>
+      <div class="kv"><span>Your sUSD balance</span><b id="myBal">—</b></div>
+    </div>
+    <div class="card">
+      <h2>Sentinel (Lasna)</h2>
+      <div class="price"><span id="armed">—</span> <small>orders tracked</small></div>
+      <div class="kv"><span>Sentinel contract</span><code id="sentinelAddr">—</code></div>
+      <div class="kv"><span>lREACT balance</span><b id="sentinelBal">—</b></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Orders</h2>
+    <table>
+      <thead><tr><th>#</th><th>Type</th><th>Amount</th><th>Trigger price</th><th>Status</th></tr></thead>
+      <tbody id="orders"><tr><td colspan="5" class="muted">loading…</td></tr></tbody>
+    </table>
+  </div>
+  <div class="card">
+    <h2>Recent events</h2>
+    <div id="events" class="muted">loading…</div>
+  </div>
+</main>
+<footer>
+  <p>Sentinel — Reactive Omni Buildathon, <b>Set It and Forget It</b> track. Contracts:
+  <a id="linkFeed" href="#" target="_blank" rel="noopener">feed</a> ·
+  <a id="linkVault" href="#" target="_blank" rel="noopener">vault</a> ·
+  <a id="linkSentinel" href="#" target="_blank" rel="noopener">sentinel</a>.
+  Demo feed stands in for a Chainlink/Uniswap price source; the sentinel subscribes by event
+  topic, so swapping the origin is a one-line change. Testnet only — no real funds.</p>
+</footer>
+<script src="vendor/ethers.umd.min.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
